@@ -32,21 +32,30 @@ async function pushToAdmin(userId: string, question: string): Promise<void> {
   if (!adminId) return
 
   let displayName = '(ไม่ทราบชื่อ)'
+  let pictureUrl: string | undefined
   try {
     const profile = await getLineClient().getProfile(userId)
     displayName = profile.displayName
+    pictureUrl = profile.pictureUrl
   } catch {
-    // fall back to default if profile fetch fails
+    // fall back to defaults if profile fetch fails
   }
 
-  try {
-    await getLineClient().pushMessage({
-      to: adminId,
-      messages: [{
-        type: 'text',
-        text: `[NK Chatbot] มีคำถามที่ไม่มีในระบบ\n\nชื่อ: ${displayName}\nLINE ID: ${userId}\nคำถาม: ${question}`,
-      }],
+  const messages: line.messagingApi.Message[] = []
+  if (pictureUrl) {
+    messages.push({
+      type: 'image',
+      originalContentUrl: pictureUrl,
+      previewImageUrl: pictureUrl,
     })
+  }
+  messages.push({
+    type: 'text',
+    text: `[NK Chatbot] มีคำถามที่ไม่มีในระบบ\n\nชื่อ: ${displayName}\nLINE ID: ${userId}\nคำถาม: ${question}`,
+  })
+
+  try {
+    await getLineClient().pushMessage({ to: adminId, messages })
   } catch (err) {
     console.error('[LINE Push Admin Error]', JSON.stringify(err))
   }
