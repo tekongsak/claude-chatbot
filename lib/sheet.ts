@@ -37,6 +37,9 @@ export function parseCSV(csv: string): FAQ[] {
   }) as Record<string, string>[]
 
   return records
-    .map((r) => ({ question: r.question ?? '', answer: r.answer ?? '' }))
+    .map((r) => ({
+      question: r.question ?? r['คำถาม'] ?? '',
+      answer: r.answer ?? r['คำตอบ'] ?? '',
+    }))
     .filter((f) => f.question && f.answer)
 }
