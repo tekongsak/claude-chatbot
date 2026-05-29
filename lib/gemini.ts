@@ -42,10 +42,22 @@ const SYSTEM_INSTRUCTION = `<role>
 
 const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! })
 
+function getBangkokDatetime(): string {
+  return new Date().toLocaleString('th-TH', {
+    timeZone: 'Asia/Bangkok',
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
 export async function askGemini(question: string, faq: FAQ[]): Promise<string> {
   const faqText = faq.map((f) => `Q: ${f.question}\nA: ${f.answer}`).join('\n\n')
 
-  const userContent = `<faq>\n${faqText}\n</faq>\n\n<question>\n${question}\n</question>`
+  const userContent = `<datetime>${getBangkokDatetime()}</datetime>\n\n<faq>\n${faqText}\n</faq>\n\n<question>\n${question}\n</question>`
 
   const response = await genAI.models.generateContent({
     model: 'gemini-2.5-flash',
