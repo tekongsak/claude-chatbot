@@ -3,8 +3,8 @@ import * as line from '@line/bot-sdk'
 import { getFAQ } from '@/lib/sheet'
 import { askGemini } from '@/lib/gemini'
 
-const DEFAULT_MSG =
-  'ขออภัยค่ะ แอดมินยังไม่มีข้อมูลส่วนนี้ รบกวนฝากเบอร์โทรหรือช่องทางติดต่อไว้ ทีมงาน NK Sleepcare จะติดต่อกลับโดยเร็วที่สุดค่ะ'
+const CUSTOMER_ACK_MSG =
+  'ขอบคุณที่ติดต่อ NK Sleepcare ค่ะ ทางเราได้รับคำถามของคุณแล้ว ทีมงานจะติดต่อกลับโดยเร็วที่สุดค่ะ'
 const SHEET_ERROR_MSG =
   'ขออภัยค่ะ ระบบกำลังอัปเดตข้อมูล รบกวนฝากเบอร์โทรหรือช่องทางติดต่อไว้ ทีมงาน NK Sleepcare จะติดต่อกลับโดยเร็วที่สุดค่ะ'
 const GEMINI_ERROR_MSG =
@@ -27,6 +27,22 @@ async function replyToUser(replyToken: string, text: string): Promise<void> {
   }
 }
 
+async function pushToAdmin(userId: string, question: string): Promise<void> {
+  const adminId = process.env.LINE_ADMIN_USER_ID
+  if (!adminId) return
+  try {
+    await getLineClient().pushMessage({
+      to: adminId,
+      messages: [{
+        type: 'text',
+        text: `[NK Chatbot] มีคำถามที่ไม่มีในระบบ\n\nคำถาม: ${question}\nLINE ID: ${userId}`,
+      }],
+    })
+  } catch (err) {
+    console.error('[LINE Push Admin Error]', JSON.stringify(err))
+  }
+}
+
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const body = await req.text()
   const signature = req.headers.get('x-line-signature') ?? ''
@@ -42,6 +58,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
 
     const userMessage = event.message.text
     const { replyToken } = event
+    const userId = ('userId' in event.source ? event.source.userId : undefined) ?? 'unknown'
 
     let faq
     try {
@@ -52,16 +69,21 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       continue
     }
 
-    let aiText: string
+    let result
     try {
-      aiText = await askGemini(userMessage, faq)
+      result = await askGemini(userMessage, faq)
     } catch (err) {
       console.error('[Gemini Error]', err)
       await replyToUser(replyToken, GEMINI_ERROR_MSG)
       continue
     }
 
-    await replyToUser(replyToken, aiText || DEFAULT_MSG)
+    if (!result.answered) {
+      await replyToUser(replyToken, CUSTOMER_ACK_MSG)
+      await pushToAdmin(userId, userMessage)
+    } else {
+      await replyToUser(replyToken, result.text)
+    }
   }
 
   return NextResponse.json({ ok: true })

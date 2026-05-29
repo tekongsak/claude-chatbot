@@ -54,7 +54,12 @@ function getBangkokDatetime(): string {
   })
 }
 
-export async function askGemini(question: string, faq: FAQ[]): Promise<string> {
+export type GeminiResult = {
+  text: string
+  answered: boolean
+}
+
+export async function askGemini(question: string, faq: FAQ[]): Promise<GeminiResult> {
   const faqText = faq.map((f) => `Q: ${f.question}\nA: ${f.answer}`).join('\n\n')
 
   const userContent = `<datetime>${getBangkokDatetime()}</datetime>\n\n<faq>\n${faqText}\n</faq>\n\n<question>\n${question}\n</question>`
@@ -75,7 +80,9 @@ export async function askGemini(question: string, faq: FAQ[]): Promise<string> {
 
   console.log('[Gemini]', { finishReason, thoughtsTokenCount, candidatesTokenCount })
 
-  if (finishReason === 'MAX_TOKENS') return DEFAULT_MSG
+  if (finishReason === 'MAX_TOKENS') return { text: DEFAULT_MSG, answered: false }
 
-  return response.text?.trim() || DEFAULT_MSG
+  const text = response.text?.trim() || ''
+  const answered = text !== '' && text !== DEFAULT_MSG
+  return { text: answered ? text : DEFAULT_MSG, answered }
 }
