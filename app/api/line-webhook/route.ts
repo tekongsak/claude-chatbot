@@ -30,12 +30,21 @@ async function replyToUser(replyToken: string, text: string): Promise<void> {
 async function pushToAdmin(userId: string, question: string): Promise<void> {
   const adminId = process.env.LINE_ADMIN_USER_ID
   if (!adminId) return
+
+  let displayName = '(ไม่ทราบชื่อ)'
+  try {
+    const profile = await getLineClient().getProfile(userId)
+    displayName = profile.displayName
+  } catch {
+    // fall back to default if profile fetch fails
+  }
+
   try {
     await getLineClient().pushMessage({
       to: adminId,
       messages: [{
         type: 'text',
-        text: `[NK Chatbot] มีคำถามที่ไม่มีในระบบ\n\nคำถาม: ${question}\nLINE ID: ${userId}`,
+        text: `[NK Chatbot] มีคำถามที่ไม่มีในระบบ\n\nชื่อ: ${displayName}\nLINE ID: ${userId}\nคำถาม: ${question}`,
       }],
     })
   } catch (err) {
