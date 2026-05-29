@@ -40,6 +40,8 @@ export function parseCSV(csv: string): FAQ[] {
     .map((r) => ({
       question: r.question ?? r['คำถาม'] ?? '',
       answer: r.answer ?? r['คำตอบ'] ?? '',
+      status: r.status ?? r['สถานะ'] ?? 'เปิด',
     }))
-    .filter((f) => f.question && f.answer)
+    .filter((f) => f.question && f.answer && f.status !== 'ปิด')
+    .map(({ question, answer }) => ({ question, answer }))
 }
