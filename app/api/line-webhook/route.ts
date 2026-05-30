@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import * as line from '@line/bot-sdk'
 import { getFAQ } from '@/lib/sheet'
 import { askGemini } from '@/lib/gemini'
+import { sendMessage as littleHelpSend } from '@/lib/littlehelp'
 
 const CUSTOMER_ACK_MSG =
   'ขอบคุณที่ติดต่อ NK Sleepcare ค่ะ ทางเราได้รับคำถามของคุณแล้ว ทีมงานจะติดต่อกลับโดยเร็วที่สุดค่ะ'
@@ -16,14 +17,19 @@ function getLineClient(): line.messagingApi.MessagingApiClient {
   })
 }
 
-async function replyToUser(replyToken: string, text: string): Promise<void> {
+async function replyToUser(replyToken: string, userId: string, text: string): Promise<void> {
   try {
-    await getLineClient().replyMessage({
-      replyToken,
-      messages: [{ type: 'text', text }],
-    })
+    await littleHelpSend(userId, text)
   } catch (err) {
-    console.error('[LINE Reply Error]', JSON.stringify(err))
+    console.error('[LittleHelp Error] falling back to LINE', err)
+    try {
+      await getLineClient().replyMessage({
+        replyToken,
+        messages: [{ type: 'text', text }],
+      })
+    } catch (lineErr) {
+      console.error('[LINE Reply Error]', JSON.stringify(lineErr))
+    }
   }
 }
 
@@ -83,7 +89,7 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       faq = await getFAQ()
     } catch (err) {
       console.error('[Sheet Error]', err)
-      await replyToUser(replyToken, SHEET_ERROR_MSG)
+      await replyToUser(replyToken, userId, SHEET_ERROR_MSG)
       continue
     }
 
@@ -92,15 +98,15 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       result = await askGemini(userMessage, faq)
     } catch (err) {
       console.error('[Gemini Error]', err)
-      await replyToUser(replyToken, GEMINI_ERROR_MSG)
+      await replyToUser(replyToken, userId, GEMINI_ERROR_MSG)
       continue
     }
 
     if (!result.answered) {
-      await replyToUser(replyToken, CUSTOMER_ACK_MSG)
+      await replyToUser(replyToken, userId, CUSTOMER_ACK_MSG)
       await pushToAdmin(userId, userMessage)
     } else {
-      await replyToUser(replyToken, result.text)
+      await replyToUser(replyToken, userId, result.text)
     }
   }
 
