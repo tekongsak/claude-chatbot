@@ -65,7 +65,7 @@ export async function askGemini(question: string, faq: FAQ[]): Promise<GeminiRes
   const userContent = `<datetime>${getBangkokDatetime()}</datetime>\n\n<faq>\n${faqText}\n</faq>\n\n<question>\n${question}\n</question>`
 
   const response = await genAI.models.generateContent({
-    model: 'gemini-3.5-flash',
+    model: 'gemini-2.5-flash',
     contents: [{ role: 'user', parts: [{ text: userContent }] }],
     config: {
       systemInstruction: SYSTEM_INSTRUCTION,
